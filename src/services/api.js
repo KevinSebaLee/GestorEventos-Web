@@ -72,16 +72,6 @@ export const eventsAPI = {
     rating: enrollmentData.rating !== null ? enrollmentData.rating : 1
   }),
   unenroll: (id) => api.delete(`/event/${id}/enrollment`),
-  getEnrollments: (id) => api.get(`/event/${id}/enrollment`).catch(error => {
-    console.warn('Enrollment status endpoint failed, will try alternative:', error.response?.status);
-    if (error.response?.status === 404) {
-      return api.get(`/event/${id}/enrollments`).catch(altError => {
-        console.warn('Alternative enrollments endpoint also failed:', altError.response?.status);
-        return { data: { enrolled: false } };
-      });
-    }
-    throw error;
-  }),
 };
 
 export const eventLocationsAPI = {
