@@ -106,7 +106,8 @@ const Events = () => {
             const isMyEvent = event.id_creator_user === user.id;
             const eventDate = new Date(event.start_date);
             const isPast = eventDate < new Date();
-            
+            // Check if user is enrolled
+            const isEnrolled = Array.isArray(event.enrollments) && event.enrollments.some(e => e.user_id === user.id);
             return (
               <div key={event.id} className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
@@ -162,13 +163,17 @@ const Events = () => {
                   </Link>
                   
                   {!isMyEvent && !isPast && (
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => handleEnrollToggle(event.id, false)} // Simplified for now
-                    >
-                      <Users size={14} />
-                      Inscribirse
-                    </button>
+                    isEnrolled ? (
+                      <span style={{ color: '#10b981', fontWeight: 600, alignSelf: 'center' }}>Inscrito</span>
+                    ) : (
+                      <button 
+                        className="btn btn-primary"
+                        onClick={() => handleEnrollToggle(event.id, false)}
+                      >
+                        <Users size={14} />
+                        Inscribirse
+                      </button>
+                    )
                   )}
                 </div>
               </div>
