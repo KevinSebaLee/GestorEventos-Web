@@ -14,8 +14,6 @@ import {
   BarChart3,
   Activity
 } from 'lucide-react';
-import '../App.css';
-import './Dashboard.css';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -82,14 +80,52 @@ const Dashboard = () => {
   return (
     <div className="fade-in">
       {/* Welcome Header */}
-      <div className="dashboard-header">
-        <div className="dashboard-header-content">
-          <h1>¡Bienvenido de vuelta, {user.firstName}! 🎉</h1>
-          <p>Gestiona tus eventos y descubre nuevas oportunidades</p>
+      <div className="mb-8" style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '3rem 2rem',
+        color: 'white',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '-50%',
+          right: '-10%',
+          width: '300px',
+          height: '300px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: '50%',
+          filter: 'blur(40px)'
+        }}></div>
+        
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h1 style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: '700',
+            marginBottom: '0.5rem',
+            color: 'white'
+          }}>
+            ¡Bienvenido de vuelta, {user.firstName}! 🎉
+          </h1>
+          <p style={{ 
+            fontSize: '1.125rem', 
+            opacity: 0.9,
+            marginBottom: '2rem'
+          }}>
+            Gestiona tus eventos y descubre nuevas oportunidades
+          </p>
           
           <Link to="/events/new">
             <button 
-              className="dashboard-btn"
+              className="btn btn-lg"
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                color: 'white',
+                fontWeight: '600'
+              }}
             >
               <Plus size={20} />
               Crear Nuevo Evento
@@ -105,14 +141,29 @@ const Dashboard = () => {
           return (
             <div 
               key={index}
-              className="dashboard-card"
+              className="card"
+              style={{
+                background: stat.bgColor,
+                border: `1px solid ${stat.bgColor}`,
+                transition: 'all 0.3s ease'
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p>
+                  <p style={{ 
+                    color: 'var(--text-secondary)', 
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    marginBottom: '0.5rem'
+                  }}>
                     {stat.title}
                   </p>
-                  <h3>
+                  <h3 style={{ 
+                    fontSize: '2rem', 
+                    fontWeight: '700',
+                    color: 'var(--text-primary)',
+                    margin: 0
+                  }}>
                     {stat.value}
                   </h3>
                 </div>

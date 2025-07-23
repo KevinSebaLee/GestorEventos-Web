@@ -12,32 +12,40 @@ const EventDetail = () => {
   const [eventLoading, setEventLoading] = useState(true);
   const [eventError, setEventError] = useState(null);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
-
-  const fetchEvent = async () => {
-    setEventLoading(true);
-    setEventError(null);
-    try {
-      const res = await eventsAPI.getById(id);
-      const eventData = Array.isArray(res.data) ? res.data[0] : res.data;
-      setEvent(eventData);
-    } catch (err) {
-      setEventError('Error al cargar el evento');
-    } finally {
-      setEventLoading(false);
-    }
-  };
+  const [isUserEnrolled, setIsUserEnrolled] = useState(false);
+  const [allEnrollments, setAllEnrollments] = useState([]);
+  const [allEnrollmentsLoading, setAllEnrollmentsLoading] = useState(true);
 
   useEffect(() => {
+    const fetchEvent = async () => {
+      setEventLoading(true);
+      setEventError(null);
+      try {
+        const res = await eventsAPI.getById(id);
+        const eventData = Array.isArray(res.data) ? res.data[0] : res.data;
+        setEvent(eventData);
+        // Assume eventData contains enrollments and user enrollment status
+        setAllEnrollments(eventData.enrollments || []);
+        setIsUserEnrolled(
+          !!eventData.enrollments &&
+          eventData.enrollments.some(e => e.user_id === user.id)
+        );
+      } catch (err) {
+        setEventError('Error al cargar el evento');
+      } finally {
+        setEventLoading(false);
+        setAllEnrollmentsLoading(false);
+      }
+    };
     fetchEvent();
-    // eslint-disable-next-line
-  }, [id]);
+  }, [id, user.id]);
 
   const handleDeleteEvent = async () => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este evento?')) {
       try {
         await eventsAPI.delete(id);
         navigate('/events');
-      } catch (error) {
+      } catch (error) { 
         alert('Error al eliminar el evento');
       }
     }
@@ -46,8 +54,10 @@ const EventDetail = () => {
   const handleEnrollmentToggle = async () => {
     setEnrollmentLoading(true);
     try {
-      if (event.is_enrolled) {
+      if (isUserEnrolled) {
         await eventsAPI.unenroll(id);
+        setIsUserEnrolled(false);
+        setAllEnrollments(allEnrollments.filter(e => e.user_id !== user.id));
       } else {
         await eventsAPI.enroll(id, {
           description: 'Inscripción al evento desde la aplicación web',
@@ -55,8 +65,9 @@ const EventDetail = () => {
           observations: 'Inscripción realizada desde la interfaz web',
           rating: 5
         });
+        setIsUserEnrolled(true);
+        setAllEnrollments([...allEnrollments, { user_id: user.id, first_name: user.firstName, last_name: user.lastName, username: user.username, attended: false, description: '', observations: '', rating: 5 }]);
       }
-      await fetchEvent(); // Refetch event to update enrollments and is_enrolled
     } catch (error) {
       alert('Error al cambiar inscripción');
     } finally {
@@ -79,6 +90,7 @@ const EventDetail = () => {
           <h1>{event.evento_nombre || event.name || 'Evento sin nombre'}</h1>
           {isPast && <span style={{ color: '#ff4444', fontSize: '0.9rem' }}>Evento pasado</span>}
         </div>
+        
         {isMyEvent && (
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <Link to={`/events/${id}/edit`}>
@@ -102,10 +114,12 @@ const EventDetail = () => {
       <div className="grid grid-2">
         <div className="card">
           <h2>Detalles del Evento</h2>
+          
           <div style={{ marginBottom: '1rem' }}>
             <h3>Descripción</h3>
             <p>{event.description || 'No hay descripción disponible'}</p>
           </div>
+
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <Calendar size={16} />
@@ -113,6 +127,7 @@ const EventDetail = () => {
             </div>
             <p>{eventDate.toLocaleString()}</p>
           </div>
+
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <MapPin size={16} />
@@ -125,6 +140,7 @@ const EventDetail = () => {
               </p>
             )}
           </div>
+
           {(event.price !== null && event.price !== undefined && event.price !== '') && (
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -134,6 +150,7 @@ const EventDetail = () => {
               <p>${parseFloat(event.price).toFixed(2)}</p>
             </div>
           )}
+
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <User size={16} />
@@ -144,16 +161,17 @@ const EventDetail = () => {
               <p style={{ fontSize: '0.9rem', color: '#666' }}>{event.username}</p>
             )}
           </div>
+
           {!isPast && (
             <button 
-              className={`btn ${event.is_enrolled ? 'btn-success' : 'btn-primary'}`}
+              className={`btn ${isUserEnrolled ? 'btn-success' : 'btn-primary'}`}
               onClick={handleEnrollmentToggle}
               disabled={enrollmentLoading}
               style={{ width: '100%' }}
             >
               {enrollmentLoading ? (
                 'Procesando...'
-              ) : event.is_enrolled ? (
+              ) : isUserEnrolled ? (
                 <>
                   <UserCheck size={16} />
                   Suscrito - Cancelar Inscripción
@@ -167,12 +185,16 @@ const EventDetail = () => {
             </button>
           )}
         </div>
+
         <div className="card">
           <h2>
             <Users size={20} />
             Participantes del Evento
           </h2>
-          {event.enrollments && event.enrollments.length > 0 ? (
+          
+          {allEnrollmentsLoading ? (
+            <div className="loading">Cargando participantes...</div>
+          ) : allEnrollments && allEnrollments.length > 0 ? (
             <div>
               <div style={{
                 padding: '1rem',
@@ -183,11 +205,12 @@ const EventDetail = () => {
                 textAlign: 'center'
               }}>
                 <h3 style={{ color: '#0ea5e9', margin: '0 0 0.5rem 0' }}>
-                  {event.enrollment_count} {event.enrollment_count === 1 ? 'Participante Inscrito' : 'Participantes Inscritos'}
+                  {allEnrollments.length} {allEnrollments.length === 1 ? 'Participante Inscrito' : 'Participantes Inscritos'}
                 </h3>
               </div>
+
               <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {event.enrollments.map((enrollment, index) => (
+                {allEnrollments.map((enrollment, index) => (
                   <div key={index} style={{ 
                     padding: '1rem', 
                     marginBottom: '0.75rem', 
@@ -228,6 +251,7 @@ const EventDetail = () => {
                         {enrollment.attended ? 'Asistió' : 'Inscrito'}
                       </span>
                     </div>
+                    
                     <div style={{ 
                       borderTop: '1px solid #e5e7eb',
                       paddingTop: '0.75rem',
@@ -283,36 +307,43 @@ const EventDetail = () => {
               </p>
             </div>
           )}
-          <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '2px solid #e5e7eb' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#374151' }}>Tu Estado de Participación</h3>
-            {event.is_enrolled ? (
-              <div style={{
-                padding: '1rem',
-                backgroundColor: '#f0f9ff',
-                border: '2px solid #0ea5e9',
-                borderRadius: '8px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <UserCheck size={18} style={{ color: '#0ea5e9' }} />
-                  <strong style={{ color: '#0ea5e9' }}>¡Estás inscrito en este evento!</strong>
+
+          {/* User's enrollment status section */}
+          {allEnrollmentsLoading ? (
+            <div className="loading" style={{ marginTop: '1.5rem' }}>Cargando tu estado de inscripción...</div>
+          ) : (
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '2px solid #e5e7eb' }}>
+              <h3 style={{ marginBottom: '1rem', color: '#374151' }}>Tu Estado de Participación</h3>
+              {isUserEnrolled ? (
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: '#f0f9ff',
+                  border: '2px solid #0ea5e9',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <UserCheck size={18} style={{ color: '#0ea5e9' }} />
+                    <strong style={{ color: '#0ea5e9' }}>¡Estás inscrito en este evento!</strong>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div style={{
-                padding: '1rem',
-                backgroundColor: '#fef2f2',
-                border: '2px solid #f87171',
-                borderRadius: '8px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <UserX size={18} style={{ color: '#dc2626' }} />
-                  <strong style={{ color: '#dc2626' }}>No estás inscrito en este evento</strong>
+              ) : (
+                <div style={{
+                  padding: '1rem',
+                  backgroundColor: '#fef2f2',
+                  border: '2px solid #f87171',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <UserX size={18} style={{ color: '#dc2626' }} />
+                    <strong style={{ color: '#dc2626' }}>No estás inscrito en este evento</strong>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
       <div style={{ marginTop: '2rem', textAlign: 'center' }}>
         <Link to="/events">
           <button className="btn btn-secondary">Volver a Eventos</button>

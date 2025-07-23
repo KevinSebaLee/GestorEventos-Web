@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import MainMenu from './pages/MainMenu';
 import EventDetail from './pages/EventDetail';
+import Events from './pages/Events';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -53,6 +54,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
           <Route path="/events/:id" element={<ProtectedRoute><EventDetail /></ProtectedRoute>} />
+          <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
           <Route path="/" element={<MainMenu />} />
           {/* Catch-all: if not logged in, redirect to main menu */}
           <Route path="*" element={<Navigate to="/" />} />
