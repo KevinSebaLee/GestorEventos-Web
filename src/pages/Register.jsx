@@ -1,51 +1,75 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 
-const Login = () => {
-  const [credentials, setCredentials] = useState({
+const Register = () => {
+  const [userData, setUserData] = useState({
     username: '',
-    password: ''
+    password: '',
+    firstName: '',
+    lastName: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
   
-  const { login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setCredentials({
-      ...credentials,
-      [e.target.name]: e.target.value
+    const { name, value } = e.target;
+    setUserData({
+      ...userData,
+      [name]: value
     });
+
+    // Check password strength
+    if (name === 'password') {
+      const strength = calculatePasswordStrength(value);
+      setPasswordStrength(strength);
+    }
   };
 
+  const calculatePasswordStrength = (password) => {
+    let strength = 0;
+    if (password.length >= 6) strength += 1;
+    if (password.length >= 8) strength += 1;
+    if (/[A-Z]/.test(password)) strength += 1;
+    if (/[0-9]/.test(password)) strength += 1;
+    if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+    return strength;
+  };
 
+  const getPasswordStrengthColor = () => {
+    if (passwordStrength <= 1) return '#ef4444';
+    if (passwordStrength <= 3) return '#f59e0b';
+    return '#10b981';
+  };
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrength <= 1) return 'Débil';
+    if (passwordStrength <= 3) return 'Media';
+    return 'Fuerte';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    console.log('Login form submitted with:', credentials);
-
-    // Basic validation
-    if (!credentials.username || !credentials.password) {
-      setError('Por favor completa todos los campos');
+    if (userData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
       setLoading(false);
       return;
     }
 
-    const result = await login(credentials);
-    console.log('Login result:', result);
+    const result = await register(userData);
     
     if (result.success) {
-      console.log('Login successful, navigating to dashboard');
       navigate('/dashboard');
     } else {
-      console.error('Login failed:', result.error);
       setError(result.error);
     }
     
@@ -64,8 +88,8 @@ const Login = () => {
         minWidth: '100vw',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         zIndex: 0,
-        overflow: 'hidden',
-        paddingTop: '4.5rem', // 72px, enough for nav separation
+        overflow: 'auto',
+        paddingTop: '6.5rem',
         paddingBottom: '2rem',
         boxSizing: 'border-box',
       }}
@@ -76,6 +100,7 @@ const Login = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          marginBottom: '2.5rem',
         }}
       >
         <div
@@ -91,12 +116,13 @@ const Login = () => {
             borderRadius: '1.5rem',
             width: '100%',
             fontSize: '1.1rem',
+            marginBottom: '2.5rem',
           }}
         >
           {/* Header */}
           <div className="text-center mb-8">
             <div style={{
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               width: '4rem',
               height: '4rem',
               borderRadius: '1rem',
@@ -105,7 +131,7 @@ const Login = () => {
               justifyContent: 'center',
               margin: '0 auto 1rem'
             }}>
-              <LogIn size={32} color="white" />
+              <UserPlus size={32} color="white" />
             </div>
             <h2 style={{ 
               fontSize: '2rem', 
@@ -115,14 +141,48 @@ const Login = () => {
               WebkitTextFillColor: 'transparent',
               marginBottom: '0.5rem'
             }}>
-              ¡Bienvenido de vuelta!
+              ¡Únete a nosotros!
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-              Inicia sesión para acceder a tu cuenta
+              Crea tu cuenta y comienza a gestionar eventos
             </p>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-2" style={{ gap: '1rem' }}>
+              <div className="form-group">
+                <label htmlFor="firstName" className="flex items-center gap-2" style={{alignItems:'center'}}>
+                  <User size={16} style={{verticalAlign:'middle', display:'inline-block', marginRight: '0.5rem'}} />
+                  Nombre
+                </label>
+                <input
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  value={userData.firstName}
+                  onChange={handleChange}
+                  placeholder="Tu nombre"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="lastName" className="flex items-center gap-2" style={{alignItems:'center'}}>
+                  <User size={16} style={{verticalAlign:'middle', display:'inline-block', marginRight: '0.5rem'}} />
+                  Apellido
+                </label>
+                <input
+                  type="text"
+                  id="lastName"
+                  name="lastName"
+                  value={userData.lastName}
+                  onChange={handleChange}
+                  placeholder="Tu apellido"
+                  required
+                />
+              </div>
+            </div>
+            
             <div className="form-group">
               <label htmlFor="username" className="flex items-center gap-2" style={{alignItems:'center'}}>
                 <Mail size={16} style={{verticalAlign:'middle', display:'inline-block', marginRight: '0.5rem'}} />
@@ -132,7 +192,7 @@ const Login = () => {
                 type="email"
                 id="username"
                 name="username"
-                value={credentials.username}
+                value={userData.username}
                 onChange={handleChange}
                 placeholder="ejemplo@correo.com"
                 required
@@ -154,10 +214,11 @@ const Login = () => {
                   type={showPassword ? "text" : "password"}
                   id="password"
                   name="password"
-                  value={credentials.password}
+                  value={userData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
                   required
+                  minLength="6"
                   style={{
                     paddingLeft: '3rem',
                     paddingRight: '3rem',
@@ -182,6 +243,37 @@ const Login = () => {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+              
+              {userData.password && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.75rem',
+                    marginBottom: '0.25rem'
+                  }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Seguridad:</span>
+                    <span style={{ color: getPasswordStrengthColor(), fontWeight: '600' }}>
+                      {getPasswordStrengthText()}
+                    </span>
+                  </div>
+                  <div style={{
+                    width: '100%',
+                    height: '0.25rem',
+                    backgroundColor: 'var(--gray-200)',
+                    borderRadius: '0.125rem',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${(passwordStrength / 5) * 100}%`,
+                      height: '100%',
+                      backgroundColor: getPasswordStrengthColor(),
+                      transition: 'all 0.3s ease'
+                    }}></div>
+                  </div>
+                </div>
+              )}
             </div>
             
             {error && (
@@ -199,39 +291,37 @@ const Login = () => {
               </div>
             )}
             
-            <div className="space-y-3">
-              <button 
-                type="submit" 
-                className="btn btn-primary btn-lg w-full"
-                disabled={loading}
-                style={{
-                  background: loading 
-                    ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
-                    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                  fontWeight: '600',
-                  fontSize: '1rem'
-                }}
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="loading-spinner" style={{
-                      width: '1rem',
-                      height: '1rem',
-                      border: '2px solid rgba(255,255,255,0.3)',
-                      borderTop: '2px solid white',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }}></div>
-                    Iniciando sesión...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <LogIn size={18} />
-                    Iniciar Sesión
-                  </div>
-                )}
-              </button>
-            </div>
+            <button 
+              type="submit" 
+              className="btn btn-success btn-lg w-full"
+              disabled={loading}
+              style={{
+                background: loading 
+                  ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)' 
+                  : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                fontWeight: '600',
+                fontSize: '1rem'
+              }}
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="loading-spinner" style={{
+                    width: '1rem',
+                    height: '1rem',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTop: '2px solid white',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  Creando cuenta...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <CheckCircle size={18} />
+                  Crear Cuenta
+                </div>
+              )}
+            </button>
           </form>
           
           <div className="text-center mt-6" style={{
@@ -239,9 +329,9 @@ const Login = () => {
             borderTop: '1px solid var(--gray-200)'
           }}>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-              ¿No tienes cuenta?{' '}
+              ¿Ya tienes cuenta?{' '}
               <Link 
-                to="/register" 
+                to="/login" 
                 style={{ 
                   color: 'var(--primary-color)', 
                   textDecoration: 'none', 
@@ -251,7 +341,7 @@ const Login = () => {
                   WebkitTextFillColor: 'transparent'
                 }}
               >
-                Regístrate aquí
+                Inicia sesión aquí
               </Link>
             </p>
           </div>
@@ -261,4 +351,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Register;

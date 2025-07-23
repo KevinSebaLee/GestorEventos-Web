@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login.jsx';
 import Navbar from './components/Navbar.jsx';
+import Register from './pages/Register.jsx';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 function PublicRoute({ children }) {
@@ -24,6 +25,11 @@ function AppContent() {
             <Route path="/login" element={
               <PublicRoute>
                 <Login />
+              </PublicRoute>
+            } />
+            <Route path="/register" element={
+              <PublicRoute>
+                <Register />
               </PublicRoute>
             } />
           </Routes>
