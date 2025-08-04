@@ -9,6 +9,9 @@ import Dashboard from './pages/Dashboard';
 import MainMenu from './pages/MainMenu';
 import EventDetail from './pages/EventDetail';
 import Events from './pages/Events';
+import CreateEvent from './pages/CreateEvent';
+import EditEvent from './pages/EditEvent';
+import EventLocations from './pages/EventLocations';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -53,8 +56,11 @@ function AppContent() {
               <Dashboard />
             </ProtectedRoute>
           } />
-          <Route path="/events/:id" element={<ProtectedRoute><EventDetail /></ProtectedRoute>} />
           <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+          <Route path="/events/new" element={<ProtectedRoute><CreateEvent /></ProtectedRoute>} />
+          <Route path="/events/:id" element={<ProtectedRoute><EventDetail /></ProtectedRoute>} />
+          <Route path="/events/:id/edit" element={<ProtectedRoute><EditEvent /></ProtectedRoute>} />
+          <Route path="/locations" element={<ProtectedRoute><EventLocations /></ProtectedRoute>} />
           <Route path="/" element={
             <AuthWrapper />
           } />

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { eventsAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, MapPin, User, Edit, Trash2, Users, UserCheck, UserX, DollarSign } from 'lucide-react';
+import { Calendar, MapPin, User, Edit, Trash2, Users, UserCheck, UserX, DollarSign, AlertCircle } from 'lucide-react';
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -12,6 +12,7 @@ const EventDetail = () => {
   const [eventLoading, setEventLoading] = useState(true);
   const [eventError, setEventError] = useState(null);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
+  const [enrollmentError, setEnrollmentError] = useState(null);
   const [isUserEnrolled, setIsUserEnrolled] = useState(false);
   const [allEnrollments, setAllEnrollments] = useState([]);
   const [allEnrollmentsLoading, setAllEnrollmentsLoading] = useState(true);
@@ -53,23 +54,50 @@ const EventDetail = () => {
 
   const handleEnrollmentToggle = async () => {
     setEnrollmentLoading(true);
+    setEnrollmentError(null);
+    
     try {
       if (isUserEnrolled) {
         await eventsAPI.unenroll(id);
         setIsUserEnrolled(false);
         setAllEnrollments(allEnrollments.filter(e => e.user_id !== user.id));
       } else {
-        await eventsAPI.enroll(id, {
+        // Prepare enrollment data in the exact format expected by backend
+        const enrollmentData = {
           description: 'Inscripción al evento desde la aplicación web',
-          attended: false,
+          attended: 0,  // Send numeric value
           observations: 'Inscripción realizada desde la interfaz web',
           rating: 5
-        });
+        };
+        
+        console.log('Sending enrollment data:', enrollmentData);
+        
+        const response = await eventsAPI.enroll(id, enrollmentData);
+        console.log('Enrollment response:', response);
+        
         setIsUserEnrolled(true);
-        setAllEnrollments([...allEnrollments, { user_id: user.id, first_name: user.firstName, last_name: user.lastName, username: user.username, attended: false, description: '', observations: '', rating: 5 }]);
+        
+        // Add the new enrollment to the list
+        const newEnrollment = {
+          user_id: user.id,
+          id_user: user.id,
+          id_event: id,
+          first_name: user.firstName || '',
+          last_name: user.lastName || '',
+          username: user.username,
+          attended: 0,
+          description: enrollmentData.description,
+          observations: enrollmentData.observations,
+          rating: enrollmentData.rating,
+          registration_date_time: new Date().toISOString()
+        };
+        
+        setAllEnrollments([...allEnrollments, newEnrollment]);
       }
     } catch (error) {
-      alert('Error al cambiar inscripción');
+      console.error('Enrollment error:', error);
+      const errorMessage = error.response?.data?.message || 'Error al cambiar inscripción';
+      setEnrollmentError(errorMessage);
     } finally {
       setEnrollmentLoading(false);
     }
@@ -161,6 +189,13 @@ const EventDetail = () => {
               <p style={{ fontSize: '0.9rem', color: '#666' }}>{event.username}</p>
             )}
           </div>
+
+          {enrollmentError && (
+            <div className="error mb-4">
+              <AlertCircle size={16} />
+              {enrollmentError}
+            </div>
+          )}
 
           {!isPast && (
             <button 

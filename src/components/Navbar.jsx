@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Calendar, Plus, Home, Sparkles } from 'lucide-react';
+import { LogOut, Calendar, Plus, Home, Sparkles, MapPin } from 'lucide-react';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -9,6 +9,23 @@ const Navbar = () => {
 
   const handleLogout = () => {
     logout();
+  };
+
+  // Format user's name - prioritize actual name over username
+  const getUserDisplayName = () => {
+    if (user) {
+      const firstName = user.firstName || '';
+      const lastName = user.lastName || '';
+      
+      // If we have a real name, use it
+      if (firstName || lastName) {
+        return `${firstName} ${lastName}`.trim();
+      }
+      
+      // Otherwise fall back to username or login
+      return user.username || 'KevinSebaLee';
+    }
+    return '';
   };
 
   return (
@@ -31,8 +48,7 @@ const Navbar = () => {
           <div className="navbar-actions">
             <div className="navbar-user">
               <span style={{ fontWeight: '600', color: '#374151' }}>
-                ¡Hola, {user.firstName || user.username || 'Usuario'}
-                {user.lastName && ` ${user.lastName}`}! 👋
+                ¡Hola, {getUserDisplayName()}! 👋
               </span>
             </div>
             
@@ -47,6 +63,13 @@ const Navbar = () => {
               <button className="btn btn-secondary btn-sm">
                 <Calendar size={16} />
                 Eventos
+              </button>
+            </Link>
+            
+            <Link to="/locations">
+              <button className="btn btn-secondary btn-sm">
+                <MapPin size={16} />
+                Ubicaciones
               </button>
             </Link>
             

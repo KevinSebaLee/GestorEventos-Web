@@ -23,26 +23,17 @@ api.interceptors.request.use(
   }
 );
 
-api.interceptors.response.use(
-  (response) => {
-    return response;
+api.interceptors.request.use(
+  (config) => {
+    console.log('Making request to:', config.url);
+    console.log('With method:', config.method);
+    console.log('Request data:', config.data);
+    return config;
   },
   (error) => {
-    console.error('=== API ERROR ===');
-    console.error('URL:', error.config?.url);
-    console.error('Method:', error.config?.method?.toUpperCase());
-    console.error('Status:', error.response?.status);
-    console.error('Error data:', error.response?.data);
-    console.error('Full error:', error);
-    
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
     return Promise.reject(error);
   }
 );
-
 export const authAPI = {
   login: (credentials) => api.post('/user/login', credentials),
   register: (userData) => api.post('/user/register', userData),
@@ -62,21 +53,38 @@ export const eventsAPI = {
   }),
   getById: (id) => api.get(`/event/${id}`),
   create: (eventData) => api.post('/event', eventData),
-  update: (id, eventData) => api.put(`/event/${id}`, eventData),
-  delete: (id) => api.delete(`/event/${id}`),
+  update: (id, eventData) => {
+    console.log('API sending update with eventData:', eventData);
+
+    const processedData = {
+      ...eventData,
+      enabled_for_enrollment: eventData.enabled_for_enrollment === true || 
+      eventData.enabled_for_enrollment === 1 ? 1 : 0
+    };
+    return api.put(`/event/${id}`, processedData);
+  },  delete: (id) => api.delete(`/event/${id}`),
   getAllEnrollments: (id) => api.get(`/event/${id}/enrollments`), 
-  enroll: (id, enrollmentData = {}) => api.post(`/event/${id}/enrollment`, {
-    description: enrollmentData.description || 'Inscripción al evento desde la aplicación',
-    attended: enrollmentData.attended !== undefined ? enrollmentData.attended : true,
-    observations: enrollmentData.observations || 'Sin observaciones adicionales',
-    rating: enrollmentData.rating !== null ? enrollmentData.rating : 1
-  }),
+  enroll: (id, enrollmentData = {}) => {
+    const normalizedData = {
+      description: enrollmentData.description || 'Inscripción al evento desde la aplicación',
+      attended: typeof enrollmentData.attended === 'boolean' 
+        ? (enrollmentData.attended ? 1 : 0)
+        : (Number(enrollmentData.attended) || 0),
+      observations: enrollmentData.observations || 'Sin observaciones',
+      rating: Number(enrollmentData.rating) || 5
+    };
+    
+    console.log('Normalized enrollment data:', normalizedData);
+    return api.post(`/event/${id}/enrollment`, normalizedData);
+  },
+  
   unenroll: (id) => api.delete(`/event/${id}/enrollment`),
 };
 
 export const eventLocationsAPI = {
   getAll: () => api.get('/event-location'),
   getById: (id) => api.get(`/event-location/${id}`),
+  create: (locationData) => api.post('/event-location', locationData),
 };
 
 export const eventCategoriesAPI = {
