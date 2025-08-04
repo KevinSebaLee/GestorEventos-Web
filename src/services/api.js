@@ -58,26 +58,29 @@ export const eventsAPI = {
 
     const processedData = {
       ...eventData,
-      enabled_for_enrollment: eventData.enabled_for_enrollment === true || 
+      enabled_for_enrollment: eventData.enabled_for_enrollment === true ||
       eventData.enabled_for_enrollment === 1 ? 1 : 0
     };
+
+    console.log('Processed data with enrollment status:', processedData.enabled_for_enrollment);
     return api.put(`/event/${id}`, processedData);
-  },  delete: (id) => api.delete(`/event/${id}`),
-  getAllEnrollments: (id) => api.get(`/event/${id}/enrollments`), 
+  },
+  delete: (id) => api.delete(`/event/${id}`),
+  getAllEnrollments: (id) => api.get(`/event/${id}/enrollments`),
   enroll: (id, enrollmentData = {}) => {
     const normalizedData = {
       description: enrollmentData.description || 'Inscripción al evento desde la aplicación',
-      attended: typeof enrollmentData.attended === 'boolean' 
+      attended: typeof enrollmentData.attended === 'boolean'
         ? (enrollmentData.attended ? 1 : 0)
         : (Number(enrollmentData.attended) || 0),
       observations: enrollmentData.observations || 'Sin observaciones',
       rating: Number(enrollmentData.rating) || 5
     };
-    
+
     console.log('Normalized enrollment data:', normalizedData);
     return api.post(`/event/${id}/enrollment`, normalizedData);
   },
-  
+
   unenroll: (id) => api.delete(`/event/${id}/enrollment`),
 };
 
