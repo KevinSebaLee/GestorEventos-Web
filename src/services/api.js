@@ -41,7 +41,17 @@ export const authAPI = {
 };
 
 export const eventsAPI = {
-  getAll: () => api.get('/event'),
+  getAll: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.nombre) params.append('nombre', filters.nombre);
+    if (filters.fecha_inicio) params.append('fecha_inicio', filters.fecha_inicio);
+    if (filters.tag) params.append('tag', filters.tag);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/event?${queryString}` : '/event';
+    
+    return api.get(url);
+  },
   getAvailable: () => api.get('/event').then(res => {
     const now = new Date();
     const events = Array.isArray(res.data) ? res.data : [res.data];

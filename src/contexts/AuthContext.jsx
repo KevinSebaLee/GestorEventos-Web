@@ -19,21 +19,21 @@ export const AuthProvider = ({ children }) => {
     console.log("AuthContext: Checking for existing token...");
     const token = localStorage.getItem("token");
     console.log("AuthContext: Token found:", token ? "Yes" : "No");
-
+  
     if (token) {
       try {
         // Decode token to get user info
         const payload = JSON.parse(atob(token.split(".")[1]));
         console.log("AuthContext: Decoded token payload:", payload);
-
+  
         const userData = {
           id: payload.id,
           email: payload.email,
-          firstName: payload.firstName || payload.first_name || "Usuario",
-          lastName: payload.lastName || payload.last_name || "",
+          firstName: payload.first_name || payload.firstName || "",
+          lastName: payload.last_name || payload.lastName || "",
           username: payload.username || payload.email,
         };
-
+  
         console.log("AuthContext: Setting user data:", userData);
         setUser(userData);
       } catch (error) {
@@ -96,14 +96,14 @@ export const AuthProvider = ({ children }) => {
         firstName:
           userData?.firstName ||
           userData?.first_name ||
-          tokenUserData?.firstName ||
           tokenUserData?.first_name ||
-          "Usuario",
+          tokenUserData?.firstName ||
+          "",
         lastName:
           userData?.lastName ||
           userData?.last_name ||
-          tokenUserData?.lastName ||
           tokenUserData?.last_name ||
+          tokenUserData?.lastName ||
           "",
         email: userData?.email || tokenUserData?.email || credentials.username,
       };

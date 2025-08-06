@@ -11,19 +11,16 @@ const Navbar = () => {
     logout();
   };
 
-  // Format user's name - prioritize actual name over username
   const getUserDisplayName = () => {
     if (user) {
-      const firstName = user.firstName || '';
-      const lastName = user.lastName || '';
+      const firstName = user.firstName || user.first_name || '';
+      const lastName = user.lastName || user.last_name || '';
       
-      // If we have a real name, use it
       if (firstName || lastName) {
         return `${firstName} ${lastName}`.trim();
       }
       
-      // Otherwise fall back to username or login
-      return user.username || 'KevinSebaLee';
+      return user.username || user.email;
     }
     return '';
   };
