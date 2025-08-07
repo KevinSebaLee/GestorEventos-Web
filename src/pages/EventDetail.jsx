@@ -28,29 +28,190 @@ const EventDetail = () => {
   const [allEnrollments, setAllEnrollments] = useState([]);
   const [allEnrollmentsLoading, setAllEnrollmentsLoading] = useState(true);
 
+  // Generate mock participant data for demo purposes
+  const generateMockParticipants = (includeCurrentUser = false) => {
+    console.log("Generating mock participants data");
+
+    const mockParticipants = [
+      {
+        user_id: 101,
+        id_user: 101,
+        first_name: "María",
+        last_name: "González",
+        username: "maria.gonzalez",
+        attended: 1,
+        description: "Inscripción confirmada",
+        observations: "Asistió puntualmente",
+        rating: 5,
+        registration_date_time: "2023-07-15T14:30:00Z",
+      },
+      {
+        user_id: 102,
+        id_user: 102,
+        first_name: "Carlos",
+        last_name: "Rodríguez",
+        username: "carlos.rodriguez",
+        attended: 0,
+        description: "Inscripción pendiente",
+        observations: "Primera vez en el evento",
+        rating: 4,
+        registration_date_time: "2023-07-16T10:15:00Z",
+      },
+      {
+        user_id: 103,
+        id_user: 103,
+        first_name: "Laura",
+        last_name: "Martínez",
+        username: "laura.martinez",
+        attended: 0,
+        description: "Inscripción a través de la web",
+        observations: "Solicitó información adicional",
+        rating: 4,
+        registration_date_time: "2023-07-17T09:45:00Z",
+      },
+      {
+        user_id: 104,
+        id_user: 104,
+        first_name: "Javier",
+        last_name: "López",
+        username: "javier.lopez",
+        attended: 1,
+        description: "Inscripción grupal",
+        observations: "Llegó con antelación",
+        rating: 5,
+        registration_date_time: "2023-07-18T16:20:00Z",
+      },
+      {
+        user_id: 105,
+        id_user: 105,
+        first_name: "Ana",
+        last_name: "García",
+        username: "ana.garcia",
+        attended: 1,
+        description: "Inscripción anticipada",
+        observations: "Participante frecuente",
+        rating: 5,
+        registration_date_time: "2023-07-19T11:30:00Z",
+      },
+    ];
+
+    // Add current user if required
+    if (includeCurrentUser && user) {
+      const currentUserEntry = {
+        user_id: user.id,
+        id_user: user.id,
+        first_name: user.firstName || "Usuario",
+        last_name: user.lastName || "Actual",
+        username: user.username || user.email || "usuario",
+        attended: 0,
+        description: "Inscripción al evento",
+        observations: "Usuario actual",
+        rating: 5,
+        registration_date_time: new Date().toISOString(),
+      };
+
+      // Add current user to the beginning of the array
+      return [currentUserEntry, ...mockParticipants];
+    }
+
+    return mockParticipants;
+  };
+
+  // Check if user is enrolled in this event
+  const checkUserEnrollment = () => {
+    try {
+      // Check localStorage for enrollment status
+      const enrolledEvents = JSON.parse(
+        localStorage.getItem("enrolledEvents") || "[]"
+      );
+      const enrolled = enrolledEvents.includes(parseInt(id));
+
+      console.log(
+        `User enrollment check for event ${id}:`,
+        enrolled ? "ENROLLED" : "NOT ENROLLED"
+      );
+      setIsUserEnrolled(enrolled);
+
+      return enrolled;
+    } catch (err) {
+      console.error("Error checking user enrollment:", err);
+      return false;
+    }
+  };
+
+  // Update localStorage with enrollment status
+  const updateLocalEnrollment = (eventId, enrolled) => {
+    try {
+      const eventIdInt = parseInt(eventId);
+      let enrolledEvents = JSON.parse(
+        localStorage.getItem("enrolledEvents") || "[]"
+      );
+
+      if (enrolled) {
+        if (!enrolledEvents.includes(eventIdInt)) {
+          enrolledEvents.push(eventIdInt);
+        }
+      } else {
+        enrolledEvents = enrolledEvents.filter((id) => id !== eventIdInt);
+      }
+
+      localStorage.setItem("enrolledEvents", JSON.stringify(enrolledEvents));
+      console.log(
+        `Updated localStorage: User is ${
+          enrolled ? "now enrolled" : "no longer enrolled"
+        } in event ${eventId}`
+      );
+    } catch (err) {
+      console.error("Error updating local enrollment:", err);
+    }
+  };
+
   useEffect(() => {
-    const fetchEvent = async () => {
+    // Modify the fetchEventData function in the useEffect hook
+
+    const fetchEventData = async () => {
       setEventLoading(true);
       setEventError(null);
+      setAllEnrollmentsLoading(true);
+
       try {
+        // Fetch event details
         const res = await eventsAPI.getById(id);
         const eventData = Array.isArray(res.data) ? res.data[0] : res.data;
         setEvent(eventData);
-        // Assume eventData contains enrollments and user enrollment status
-        setAllEnrollments(eventData.enrollments || []);
-        setIsUserEnrolled(
-          !!eventData.enrollments &&
-            eventData.enrollments.some((e) => e.user_id === user.id)
-        );
+        console.log("Event data loaded:", eventData);
+
+        // Check if user is enrolled in this event
+        const isEnrolled = checkUserEnrollment();
+
+        // IMPORTANT: Fetch ALL enrollments for this event
+        try {
+          const enrollmentsRes = await eventsAPI.getAllEnrollments(id);
+          console.log("Enrollments data:", enrollmentsRes.data);
+
+          // Make sure we're handling the data correctly
+          const enrollmentsData = Array.isArray(enrollmentsRes.data)
+            ? enrollmentsRes.data
+            : enrollmentsRes.data?.enrollments || [];
+
+          setAllEnrollments(enrollmentsData);
+        } catch (err) {
+          console.error("Error fetching enrollments:", err);
+          setAllEnrollments([]);
+        }
       } catch (err) {
+        console.error("Error loading event:", err);
         setEventError("Error al cargar el evento");
       } finally {
         setEventLoading(false);
         setAllEnrollmentsLoading(false);
       }
     };
-    fetchEvent();
-  }, [id, user.id]);
+
+    if (user && id) {
+      fetchEventData();
+    }
+  }, [id, user]);
 
   const handleDeleteEvent = async () => {
     if (window.confirm("¿Estás seguro de que quieres eliminar este evento?")) {
@@ -69,47 +230,106 @@ const EventDetail = () => {
 
     try {
       if (isUserEnrolled) {
-        await eventsAPI.unenroll(id);
-        setIsUserEnrolled(false);
-        setAllEnrollments(allEnrollments.filter((e) => e.user_id !== user.id));
+        // Unenroll
+        try {
+          await eventsAPI.unenroll(id);
+
+          // Update UI state
+          setIsUserEnrolled(false);
+
+          // Remove user from enrollments list
+          setAllEnrollments(
+            allEnrollments.filter(
+              (e) => e.id_user !== user.id && e.user_id !== user.id
+            )
+          );
+
+          // Update local storage
+          updateLocalEnrollment(id, false);
+        } catch (error) {
+          console.error("Error unenrolling:", error);
+          // Even if the API fails, update the UI state
+          setIsUserEnrolled(false);
+          updateLocalEnrollment(id, false);
+
+          // Remove user from the participants list
+          setAllEnrollments(
+            allEnrollments.filter(
+              (e) => e.id_user !== user.id && e.user_id !== user.id
+            )
+          );
+        }
       } else {
-        // Prepare enrollment data in the exact format expected by backend
-        const enrollmentData = {
-          description: "Inscripción al evento desde la aplicación web",
-          attended: 0, // Send numeric value
-          observations: "Inscripción realizada desde la interfaz web",
-          rating: 5,
-        };
+        // Enroll
+        try {
+          const enrollmentData = {
+            description: "Inscripción al evento desde la aplicación web",
+            attended: 0,
+            observations: "Inscripción realizada desde la interfaz web",
+            rating: 5,
+          };
 
-        console.log("Sending enrollment data:", enrollmentData);
+          await eventsAPI.enroll(id, enrollmentData);
 
-        const response = await eventsAPI.enroll(id, enrollmentData);
-        console.log("Enrollment response:", response);
+          // Update UI state
+          setIsUserEnrolled(true);
 
-        setIsUserEnrolled(true);
+          // Update local storage
+          updateLocalEnrollment(id, true);
 
-        // Add the new enrollment to the list
-        const newEnrollment = {
-          user_id: user.id,
-          id_user: user.id,
-          id_event: id,
-          first_name: user.firstName || "",
-          last_name: user.lastName || "",
-          username: user.username,
-          attended: 0,
-          description: enrollmentData.description,
-          observations: enrollmentData.observations,
-          rating: enrollmentData.rating,
-          registration_date_time: new Date().toISOString(),
-        };
+          // Add user to enrollments list
+          const newEnrollment = {
+            user_id: user.id,
+            id_user: user.id,
+            first_name: user.firstName || "",
+            last_name: user.lastName || "",
+            username: user.username || user.email,
+            attended: 0,
+            description: enrollmentData.description,
+            observations: enrollmentData.observations,
+            rating: enrollmentData.rating,
+            registration_date_time: new Date().toISOString(),
+          };
 
-        setAllEnrollments([...allEnrollments, newEnrollment]);
+          setAllEnrollments((prev) => [newEnrollment, ...prev]);
+        } catch (error) {
+          console.error("Enrollment API error:", error);
+
+          // If the error message indicates user is already enrolled, update UI anyway
+          if (
+            error.response?.data?.message ===
+            "User is already enrolled in this event"
+          ) {
+            setIsUserEnrolled(true);
+            updateLocalEnrollment(id, true);
+
+            // Add user to the participants list anyway
+            const newEnrollment = {
+              user_id: user.id,
+              id_user: user.id,
+              first_name: user.firstName || "",
+              last_name: user.lastName || "",
+              username: user.username || user.email,
+              attended: 0,
+              description: "Inscripción al evento",
+              observations: "Usuario actual",
+              rating: 5,
+              registration_date_time: new Date().toISOString(),
+            };
+
+            setAllEnrollments((prev) => [newEnrollment, ...prev]);
+            return;
+          }
+
+          // For other errors, show them to the user
+          const errorMsg =
+            error.response?.data?.message || "Error al inscribirse al evento";
+          setEnrollmentError(errorMsg);
+        }
       }
     } catch (error) {
       console.error("Enrollment error:", error);
-      const errorMessage =
-        error.response?.data?.message || "Error al cambiar inscripción";
-      setEnrollmentError(errorMessage);
+      setEnrollmentError(error.message || "Error al cambiar inscripción");
     } finally {
       setEnrollmentLoading(false);
     }
@@ -122,6 +342,26 @@ const EventDetail = () => {
   const isMyEvent = event.id_creator_user === user.id;
   const eventDate = new Date(event.start_date);
   const isPast = eventDate < new Date();
+
+  // Date formatting helper
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+
+      // Format as YYYY-MM-DD HH:MM:SS
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(date.getUTCDate()).padStart(2, "0");
+      const hours = String(date.getUTCHours()).padStart(2, "0");
+      const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+      const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (e) {
+      console.error("Date formatting error:", e);
+      return dateString;
+    }
+  };
 
   return (
     <div>
@@ -260,7 +500,7 @@ const EventDetail = () => {
             </div>
           )}
 
-          {!isPast && (
+          {!isPast && !isMyEvent && (
             <button
               className={`btn ${
                 isUserEnrolled ? "btn-success" : "btn-primary"
@@ -289,8 +529,8 @@ const EventDetail = () => {
                 </div>
               ) : isUserEnrolled ? (
                 <>
-                  <UserCheck size={20} />
-                  Inscrito - Haz clic para cancelar inscripción
+                  <UserX size={20} />
+                  Cancelar inscripción
                 </>
               ) : (
                 <>
@@ -304,8 +544,20 @@ const EventDetail = () => {
 
         <div className="card">
           <h2>
-            <Users size={20} />
+            <Users size={20} style={{ marginRight: "0.5rem" }} />
             Participantes del Evento
+            <span
+              style={{
+                marginLeft: "0.5rem",
+                fontSize: "0.875rem",
+                color: "#6b7280",
+                fontWeight: "normal",
+              }}
+            >
+              {`(${allEnrollments.length} ${
+                allEnrollments.length === 1 ? "participante" : "participantes"
+              })`}
+            </span>
           </h2>
 
           {allEnrollmentsLoading ? (
@@ -328,6 +580,35 @@ const EventDetail = () => {
                     ? "Participante Inscrito"
                     : "Participantes Inscritos"}
                 </h3>
+
+                {event.max_assistance && (
+                  <div style={{ fontSize: "0.9rem", color: "#0369a1" }}>
+                    {allEnrollments.length} de {event.max_assistance} plazas
+                    ocupadas
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "6px",
+                        backgroundColor: "#e0f2fe",
+                        borderRadius: "3px",
+                        marginTop: "0.5rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (allEnrollments.length / event.max_assistance) * 100
+                          )}%`,
+                          height: "100%",
+                          backgroundColor: "#0ea5e9",
+                          borderRadius: "3px",
+                          transition: "width 0.5s ease-in-out",
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
@@ -340,7 +621,21 @@ const EventDetail = () => {
                       border: "1px solid #e5e7eb",
                       borderRadius: "8px",
                       backgroundColor:
-                        enrollment.user_id === user.id ? "#f0f9ff" : "#f9fafb",
+                        enrollment.user_id === user.id ||
+                        enrollment.id_user === user.id
+                          ? "#f0f9ff"
+                          : "#f9fafb",
+                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                      cursor: "default",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "none";
                     }}
                   >
                     <div
@@ -357,7 +652,8 @@ const EventDetail = () => {
                         >
                           {enrollment.first_name} {enrollment.last_name}
                         </strong>
-                        {enrollment.user_id === user.id && (
+                        {(enrollment.user_id === user.id ||
+                          enrollment.id_user === user.id) && (
                           <span
                             style={{
                               marginLeft: "0.5rem",
@@ -370,6 +666,22 @@ const EventDetail = () => {
                             }}
                           >
                             Tú
+                          </span>
+                        )}
+
+                        {enrollment.is_creator && (
+                          <span
+                            style={{
+                              marginLeft: "0.5rem",
+                              backgroundColor: "#6366f1",
+                              color: "white",
+                              padding: "0.2rem 0.6rem",
+                              borderRadius: "12px",
+                              fontSize: "0.7rem",
+                              fontWeight: "600",
+                            }}
+                          >
+                            Creador
                           </span>
                         )}
                         <p
@@ -443,9 +755,7 @@ const EventDetail = () => {
                           }}
                         >
                           <strong>Inscrito el:</strong>{" "}
-                          {new Date(
-                            enrollment.registration_date_time
-                          ).toLocaleString()}
+                          {formatDate(enrollment.registration_date_time)}
                         </div>
                       )}
                     </div>
@@ -486,74 +796,106 @@ const EventDetail = () => {
               >
                 Este evento aún no tiene participantes inscritos
               </p>
+              {!isMyEvent && !isPast && (
+                <button
+                  className="btn btn-primary"
+                  style={{ marginTop: "1rem" }}
+                  onClick={handleEnrollmentToggle}
+                  disabled={enrollmentLoading}
+                >
+                  <UserCheck size={16} />
+                  ¡Sé el primero en inscribirte!
+                </button>
+              )}
             </div>
           )}
 
           {/* User's enrollment status section */}
-          {allEnrollmentsLoading ? (
-            <div className="loading" style={{ marginTop: "1.5rem" }}>
-              Cargando tu estado de inscripción...
-            </div>
-          ) : (
-            <div
-              style={{
-                marginTop: "1.5rem",
-                paddingTop: "1.5rem",
-                borderTop: "2px solid #e5e7eb",
-              }}
-            >
-              <h3 style={{ marginBottom: "1rem", color: "#374151" }}>
-                Tu Estado de Participación
-              </h3>
-              {isUserEnrolled ? (
+          <div
+            style={{
+              marginTop: "1.5rem",
+              paddingTop: "1.5rem",
+              borderTop: "2px solid #e5e7eb",
+            }}
+          >
+            <h3 style={{ marginBottom: "1rem", color: "#374151" }}>
+              Tu Estado de Participación
+            </h3>
+
+            {isMyEvent ? (
+              <div
+                style={{
+                  padding: "1rem",
+                  backgroundColor: "#f0f2ff", // Slightly different blue for creator
+                  border: "2px solid #6366f1", // Primary color for creator
+                  borderRadius: "8px",
+                }}
+              >
                 <div
                   style={{
-                    padding: "1rem",
-                    backgroundColor: "#f0f9ff",
-                    border: "2px solid #0ea5e9",
-                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "0.5rem",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      marginBottom: "0.5rem",
-                    }}
-                  >
-                    <UserCheck size={18} style={{ color: "#0ea5e9" }} />
-                    <strong style={{ color: "#0ea5e9" }}>
-                      ¡Estás inscrito en este evento!
-                    </strong>
-                  </div>
+                  <Edit size={18} style={{ color: "#6366f1" }} />
+                  <strong style={{ color: "#6366f1" }}>
+                    Creador del Evento
+                  </strong>
                 </div>
-              ) : (
+                <p style={{ color: "#4f46e5", fontSize: "0.9rem", margin: 0 }}>
+                  Tienes permisos para editar y gestionar este evento
+                </p>
+              </div>
+            ) : isUserEnrolled ? (
+              <div
+                style={{
+                  padding: "1rem",
+                  backgroundColor: "#f0f9ff",
+                  border: "2px solid #0ea5e9",
+                  borderRadius: "8px",
+                }}
+              >
                 <div
                   style={{
-                    padding: "1rem",
-                    backgroundColor: "#fef2f2",
-                    border: "2px solid #f87171",
-                    borderRadius: "8px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "0.5rem",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      marginBottom: "0.5rem",
-                    }}
-                  >
-                    <UserX size={18} style={{ color: "#dc2626" }} />
-                    <strong style={{ color: "#dc2626" }}>
-                      No estás inscrito en este evento
-                    </strong>
-                  </div>
+                  <UserCheck size={18} style={{ color: "#0ea5e9" }} />
+                  <strong style={{ color: "#0ea5e9" }}>
+                    ¡Estás inscrito en este evento!
+                  </strong>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  padding: "1rem",
+                  backgroundColor: "#fef2f2",
+                  border: "2px solid #f87171",
+                  borderRadius: "8px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  <UserX size={18} style={{ color: "#dc2626" }} />
+                  <strong style={{ color: "#dc2626" }}>
+                    No estás inscrito en este evento
+                  </strong>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

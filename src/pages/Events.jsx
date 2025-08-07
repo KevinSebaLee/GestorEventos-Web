@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, MapPin, User, Edit, Trash2, Users, DollarSign, Search, Tag, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { 
+  Calendar, 
+  MapPin, 
+  User, 
+  Edit, 
+  Trash2, 
+  Users, 
+  UserCheck, 
+  UserX, 
+  DollarSign, 
+  Search, 
+  Tag, 
+  X, 
+  Filter, 
+  ChevronLeft, 
+  ChevronRight 
+} from 'lucide-react';
 import { eventsAPI } from '../services/api';
 
 const Events = () => {
@@ -10,6 +26,7 @@ const Events = () => {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userEnrollments, setUserEnrollments] = useState([]);
 
   // Backend filters
   const [nameFilter, setNameFilter] = useState('');
@@ -37,10 +54,21 @@ const Events = () => {
       // Set isFiltering flag based on whether any filters are active
       setIsFiltering(Object.keys(apiFilters).length > 0);
 
-      const res = await eventsAPI.getAll(apiFilters);
-      console.log('API response with filters:', res.data);
-      const data = Array.isArray(res.data) ? res.data : [];
-      setEvents(data);
+      // Fetch events
+      const eventsRes = await eventsAPI.getAll(apiFilters);
+      const eventsData = Array.isArray(eventsRes.data) ? eventsRes.data : [];
+      setEvents(eventsData);
+      
+      // Fetch user enrollments
+      try {
+        const enrollmentsRes = await eventsAPI.getUserEnrollments();
+        const enrollmentsData = Array.isArray(enrollmentsRes.data) ? enrollmentsRes.data : [];
+        setUserEnrollments(enrollmentsData);
+        console.log('User enrollments loaded:', enrollmentsData);
+      } catch (enrollErr) {
+        console.error('Error loading user enrollments:', enrollErr);
+        // Don't fail the whole fetch if enrollments fail
+      }
     } catch (err) {
       console.error('Error fetching events:', err);
       setError('Error al cargar eventos');
@@ -52,6 +80,25 @@ const Events = () => {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  // Helper function to check if user is enrolled in an event
+  const isUserEnrolledInEvent = (eventId) => {
+    // First try with API data if available
+    if (userEnrollments && userEnrollments.length > 0) {
+      return userEnrollments.some(enrollment => 
+        parseInt(enrollment.id_event) === parseInt(eventId)
+      );
+    }
+    
+    // Fallback to localStorage if API data is not available
+    try {
+      const enrolledEvents = JSON.parse(localStorage.getItem('enrolledEvents') || '[]');
+      return enrolledEvents.includes(parseInt(eventId));
+    } catch (err) {
+      console.error('Error checking local enrollment:', err);
+      return false;
+    }
+  };
 
   // Client-side filter for "my events"
   const filteredEvents = events.filter(event => {
@@ -87,16 +134,54 @@ const Events = () => {
     try {
       if (isEnrolled) {
         await eventsAPI.unenroll(eventId);
+        
+        // Update local storage
+        const enrolledEvents = JSON.parse(localStorage.getItem('enrolledEvents') || '[]');
+        localStorage.setItem('enrolledEvents', JSON.stringify(
+          enrolledEvents.filter(id => id !== parseInt(eventId))
+        ));
+        
       } else {
         await eventsAPI.enroll(eventId, {
           description: 'Inscripción al evento desde la aplicación web',
-          attended: false,
+          attended: 0,
           observations: 'Inscripción realizada desde la interfaz web',
           rating: 5
         });
+        
+        // Update local storage
+        const enrolledEvents = JSON.parse(localStorage.getItem('enrolledEvents') || '[]');
+        if (!enrolledEvents.includes(parseInt(eventId))) {
+          enrolledEvents.push(parseInt(eventId));
+          localStorage.setItem('enrolledEvents', JSON.stringify(enrolledEvents));
+        }
       }
-      fetchEvents(); // Refresh the list after enrollment change
+      
+      // Refresh the enrollments data after toggling
+      try {
+        const enrollmentsRes = await eventsAPI.getUserEnrollments();
+        const enrollmentsData = Array.isArray(enrollmentsRes.data) ? enrollmentsRes.data : [];
+        setUserEnrollments(enrollmentsData);
+      } catch (err) {
+        console.warn('Could not fetch user enrollments, using local data instead');
+        // Force UI refresh
+        setFilter(prev => prev);
+      }
+      
     } catch (error) {
+      // If there's an error but it mentions "already enrolled", handle it gracefully
+      if (error.response?.data?.message === 'User is already enrolled in this event') {
+        // Update local storage to reflect enrollment
+        const enrolledEvents = JSON.parse(localStorage.getItem('enrolledEvents') || '[]');
+        if (!enrolledEvents.includes(parseInt(eventId))) {
+          enrolledEvents.push(parseInt(eventId));
+          localStorage.setItem('enrolledEvents', JSON.stringify(enrolledEvents));
+        }
+        // Force UI refresh
+        setFilter(prev => prev);
+        return;
+      }
+      
       const errorMessage = error.response?.data?.message || 'Error al cambiar inscripción';
       alert(errorMessage);
     }
@@ -294,8 +379,6 @@ const Events = () => {
         </div>
       )}
 
-      {/* Removed the "Filtrar eventos" dropdown and button as requested */}
-
       {paginatedEvents.length === 0 ? (
         <div className="card">
           <p style={{ textAlign: 'center', padding: '2rem' }}>
@@ -308,8 +391,9 @@ const Events = () => {
             const isMyEvent = event.id_creator_user === user.id;
             const eventDate = new Date(event.start_date);
             const isPast = eventDate < new Date();
-            // Check if user is enrolled
-            const isEnrolled = Array.isArray(event.enrollments) && event.enrollments.some(e => e.user_id === user.id);
+            // Check if user is enrolled using the helper function
+            const isEnrolled = isUserEnrolledInEvent(event.id);
+            
             return (
               <div key={event.id} className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
@@ -390,13 +474,24 @@ const Events = () => {
                   
                   {!isMyEvent && !isPast && (
                     isEnrolled ? (
-                      <span style={{ color: '#10b981', fontWeight: 600, alignSelf: 'center' }}>Inscrito</span>
+                      <button 
+                        className="btn"
+                        style={{ 
+                          background: '#10b981', 
+                          color: 'white',
+                          borderColor: '#047857'
+                        }}
+                        onClick={() => handleEnrollToggle(event.id, true)}
+                      >
+                        <UserX size={14} />
+                        Cancelar Inscripción
+                      </button>
                     ) : (
                       <button 
                         className="btn btn-primary"
                         onClick={() => handleEnrollToggle(event.id, false)}
                       >
-                        <Users size={14} />
+                        <UserCheck size={14} />
                         Inscribirse
                       </button>
                     )
