@@ -214,12 +214,32 @@ const EventDetail = () => {
   }, [id, user]);
 
   const handleDeleteEvent = async () => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar este evento?")) {
+    if (
+      window.confirm(
+        "¿Estás seguro de que quieres eliminar este evento? Esta acción eliminará también todas las etiquetas e inscripciones asociadas."
+      )
+    ) {
       try {
-        await eventsAPI.delete(id);
-        navigate("/events");
+        setEventLoading(true); // Show loading indicator
+        const response = await eventsAPI.delete(id);
+        console.log("Delete response:", response);
+        navigate("/events", {
+          state: { message: "Evento eliminado exitosamente" },
+        });
       } catch (error) {
-        alert("Error al eliminar el evento");
+        console.error("Error details:", error);
+
+        // Show a more specific error message
+        let errorMessage = "Error al eliminar el evento";
+        if (error.response && error.response.data) {
+          errorMessage =
+            error.response.data.message ||
+            error.response.data.error ||
+            errorMessage;
+        }
+
+        alert(`${errorMessage}. Por favor intente nuevamente.`);
+        setEventLoading(false);
       }
     }
   };
